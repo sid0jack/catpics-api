@@ -5,6 +5,16 @@ definitions:
       id:
         type: string
     type: object
+  main.CatPicInfo:
+    properties:
+      id:
+        type: string
+    type: object
+  main.CatPicResponse:
+    properties:
+      id:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -13,6 +23,28 @@ info:
   version: "1.0"
 paths:
   /catpics:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all cat pictures' metadata
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/main.CatPicInfo'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List all cat pictures
+      tags:
+      - catpics
     post:
       consumes:
       - multipart/form-data
@@ -40,10 +72,10 @@ paths:
       tags:
       - catpics
   /catpics/{id}:
-    get:
+    delete:
       consumes:
       - application/json
-      description: Retrieve a cat picture by its unique identifier
+      description: Delete a cat picture by its unique identifier
       parameters:
       - description: Cat Picture ID
         in: path
@@ -53,10 +85,14 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "204":
+          description: No Content
+        "400":
+          description: Invalid request
           schema:
-            $ref: '#/definitions/main.CatPic'
+            additionalProperties:
+              type: string
+            type: object
         "404":
           description: Not Found
           schema:
@@ -69,7 +105,76 @@ paths:
             additionalProperties:
               type: string
             type: object
+      summary: Delete a cat picture
+      tags:
+      - catpics
+    get:
+      consumes:
+      - application/json
+      description: Get a cat picture by its unique ID
+      parameters:
+      - description: Cat Picture ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - image/jpeg
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.CatPicResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
       summary: Get a cat picture by ID
+      tags:
+      - catpics
+    put:
+      consumes:
+      - multipart/form-data
+      description: Update an existing cat picture with new image data
+      parameters:
+      - description: Cat Picture ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New Cat Picture
+        in: formData
+        name: catpic
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update a cat picture
       tags:
       - catpics
 swagger: "2.0"

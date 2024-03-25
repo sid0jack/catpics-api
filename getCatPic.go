@@ -9,6 +9,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type CatPicResponse struct {
+	ID string `json:"id"`
+}
+
 // getCatPicByID godoc
 // @Summary Get a cat picture by ID
 // @Description Get a cat picture by its unique ID

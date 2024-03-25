@@ -36,6 +36,9 @@ func main() {
 		router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
 		router.HandleFunc("/catpics", createCatPic(db)).Methods("POST")
 		router.HandleFunc("/catpics/{id}", getCatPicByID(db)).Methods("GET")
+		router.HandleFunc("/catpics/{id}", deleteCatPic(db)).Methods("DELETE")
+		router.HandleFunc("/catpics", listCatPics(db)).Methods("GET")
+		router.HandleFunc("/catpics/{id}", updateCatPic(db)).Methods("PUT")
 
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
