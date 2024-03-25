@@ -1,0 +1,75 @@
+basePath: /
+definitions:
+  main.CatPic:
+    properties:
+      id:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: This is a simple set of API's to store and retrieve cat pictures.
+  title: Cat Pics API
+  version: "1.0"
+paths:
+  /catpics:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Add a new cat picture to the collection
+      parameters:
+      - description: Cat Picture
+        in: formData
+        name: catpic
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/main.CatPic'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a cat picture
+      tags:
+      - catpics
+  /catpics/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a cat picture by its unique identifier
+      parameters:
+      - description: Cat Picture ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/main.CatPic'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get a cat picture by ID
+      tags:
+      - catpics
+swagger: "2.0"
