@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -14,9 +15,15 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
+const maxUploadSize = 10 << 20 // 10 MB
+
 type CatPic struct {
 	ID  string `json:"id"`
 	Data []byte `json:"-"`
+}
+
+type CatPicResponse struct {
+	ID string `json:"id"`
 }
 
 // @title Cat Pics API
@@ -44,20 +51,15 @@ func main() {
 
 		router := mux.NewRouter()
 		router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
-		router.HandleFunc("/catpics", createCatPic(db)).Methods("POST")
-		router.HandleFunc("/catpics/{id}", getCatPicByID(db)).Methods("GET")
-		router.HandleFunc("/catpics/{id}", deleteCatPic(db)).Methods("DELETE")
-		router.HandleFunc("/catpics", listCatPics(db)).Methods("GET")
-		router.HandleFunc("/catpics/{id}", updateCatPic(db)).Methods("PUT")
+		router.HandleFunc("/catpics", CreateCatPic(db)).Methods("POST")
+		router.HandleFunc("/catpics/{id}", GetCatPicByID(db)).Methods("GET")
+		router.HandleFunc("/catpics/{id}", DeleteCatPic(db)).Methods("DELETE")
+		router.HandleFunc("/catpics", ListCatPics(db)).Methods("GET")
+		router.HandleFunc("/catpics/{id}", UpdateCatPic(db)).Methods("PUT")
 
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
 
-// CatPicInfo represents the cat picture metadata.
-type CatPicInfo struct {
-	ID string `json:"id"`
-	// If you have additional metadata such as the original filename, include it here.
-}
 
 // listCatPics godoc
 // @Summary List all cat pictures
@@ -65,10 +67,10 @@ type CatPicInfo struct {
 // @Tags catpics
 // @Accept  json
 // @Produce  json
-// @Success 200 {array} CatPicInfo
+// @Success 200 {array} CatPicResponse
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /catpics [get]
-func listCatPics(db *sql.DB) http.HandlerFunc {
+func ListCatPics(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rows, err := db.Query("SELECT id FROM cat_pics")
 		if err != nil {
@@ -77,9 +79,9 @@ func listCatPics(db *sql.DB) http.HandlerFunc {
 		}
 		defer rows.Close()
 
-		var pics []CatPicInfo
+		var pics []CatPicResponse
 		for rows.Next() {
-			var pic CatPicInfo
+			var pic CatPicResponse
 			if err := rows.Scan(&pic.ID); err != nil {
 				jsonError(w, "Server error", http.StatusInternalServerError)
 				return
@@ -87,7 +89,6 @@ func listCatPics(db *sql.DB) http.HandlerFunc {
 			pics = append(pics, pic)
 		}
 
-		// Check for errors from iterating over rows
 		if err = rows.Err(); err != nil {
 			jsonError(w, "Server error", http.StatusInternalServerError)
 			return
@@ -95,10 +96,6 @@ func listCatPics(db *sql.DB) http.HandlerFunc {
 
 		jsonResponse(w, pics, http.StatusOK)
 	}
-}
-
-type CatPicResponse struct {
-	ID string `json:"id"`
 }
 
 // getCatPicByID godoc
@@ -111,7 +108,7 @@ type CatPicResponse struct {
 // @Success 200  {object}  CatPicResponse
 // @Failure 404  {object}  map[string]string
 // @Router /catpics/{id} [get]
-func getCatPicByID(db *sql.DB) http.HandlerFunc {
+func GetCatPicByID(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		id := vars["id"]
@@ -155,11 +152,19 @@ func jsonError(w http.ResponseWriter, message string, statusCode int) {
 // @Param   catpic   formData  file  true  "Cat Picture"
 // @Success 201  {object}  CatPic
 // @Failure 400  {object}  map[string]string
+// @Failure 413  {object}  map[string]string
 // @Router /catpics [post]
-func createCatPic(db *sql.DB) http.HandlerFunc {
+func CreateCatPic(db *sql.DB) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
-        if err := r.ParseMultipartForm(10 << 20); err != nil {
-            jsonError(w, "File too large", http.StatusBadRequest)
+        if r.ContentLength > maxUploadSize {
+            jsonError(w, "File too large", http.StatusRequestEntityTooLarge)
+            return
+        }
+
+        r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize+1)
+        
+        if err := r.ParseMultipartForm(maxUploadSize); err != nil {
+            jsonError(w, "File too large", http.StatusRequestEntityTooLarge)
             return
         }
 
@@ -170,9 +175,9 @@ func createCatPic(db *sql.DB) http.HandlerFunc {
         }
         defer file.Close()
 
-        fileBytes, err := ioutil.ReadAll(file)
+        fileBytes, err := io.ReadAll(file)
         if err != nil {
-            jsonError(w, "Error reading file", http.StatusInternalServerError)
+            jsonError(w, "Error reading file", http.StatusBadRequest)
             return
         }
 
@@ -208,7 +213,7 @@ func createCatPic(db *sql.DB) http.HandlerFunc {
 // @Failure 404     {object} map[string]string     "Not Found"
 // @Failure 500     {object} map[string]string     "Internal Server Error"
 // @Router /catpics/{id} [put]
-func updateCatPic(db *sql.DB) http.HandlerFunc {
+func UpdateCatPic(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		id := vars["id"]
@@ -271,7 +276,7 @@ func updateCatPic(db *sql.DB) http.HandlerFunc {
 // @Failure 404 {object} map[string]string "Not Found"
 // @Failure 500 {object} map[string]string "Internal Server Error"
 // @Router /catpics/{id} [delete]
-func deleteCatPic(db *sql.DB) http.HandlerFunc {
+func DeleteCatPic(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		id := vars["id"]
