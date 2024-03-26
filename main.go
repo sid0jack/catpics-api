@@ -26,13 +26,21 @@ type CatPic struct {
 // @BasePath /
 func main() {
 		db, err := sql.Open("sqlite3", "./catpics.sqlite3")
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer db.Close()
+    if err != nil {
+        log.Fatalf("Error opening database: %v", err)
+    }
+    defer db.Close()
 
-		statement, _ := db.Prepare("CREATE TABLE IF NOT EXISTS cat_pics (id TEXT PRIMARY KEY, data BLOB NOT NULL);")
-		statement.Exec()
+    statement, err := db.Prepare("CREATE TABLE IF NOT EXISTS cat_pics (id TEXT PRIMARY KEY, data BLOB NOT NULL);")
+    if err != nil {
+        log.Fatalf("Error preparing statement: %v", err)
+    }
+    defer statement.Close()
+
+    _, err = statement.Exec()
+    if err != nil {
+        log.Fatalf("Error executing statement: %v", err)
+    }
 
 		router := mux.NewRouter()
 		router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
