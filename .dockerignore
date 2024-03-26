@@ -5,10 +5,8 @@
 **/Dockerfile
 **/docker-compose.yml
 **/*.md
-**/docs
 **/swagger.yaml
 **/swagger.json
-**/main.go
 **/catpics.db
 **/catpics-api
 **/tmp
